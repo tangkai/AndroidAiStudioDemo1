@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.example.data.api.ErrorMode
 import com.example.data.api.FriendlyError
 import com.example.data.api.NetworkSimulationManager
@@ -56,8 +57,8 @@ fun HomeScreen(
     var showInsertAfterDialog by remember { mutableStateOf<PagingItem?>(null) }
     var currentTab by remember { mutableStateOf(0) } // 0: Live Feed, 1: DB Logs, 2: Info
 
-    // Centralized simulation state in Compose to sync with UI switches
-    var selectedErrorMode by remember { mutableStateOf(NetworkSimulationManager.activeErrorMode) }
+    // Centralized simulation state in Compose to sync with UI switches in dynamic StateFlow
+    val selectedErrorMode by NetworkSimulationManager.errorModeFlow.collectAsState()
 
     // Theme colors matching premium slate-themed design
     val primaryColor = Color(0xFF6366F1) // Indigo accent
@@ -66,13 +67,6 @@ fun HomeScreen(
     val accentColor = Color(0xFFEC4899) // Pink accent
     val backgroundColor = Color(0xFFF8FAFC) // Cool grey
     val cardBackground = Color.White
-
-    // Listen for outside simulated updates (for state cohesion)
-    LaunchedEffect(Unit) {
-        NetworkSimulationManager.onErrorModeChanged = { mode ->
-            selectedErrorMode = mode
-        }
-    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -140,7 +134,7 @@ fun HomeScreen(
                 NavigationBarItem(
                     selected = currentTab == 0,
                     onClick = { currentTab = 0 },
-                    icon = { Icon(Icons.Default.List, contentDescription = "Feed") },
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Feed") },
                     label = { Text("Feed", fontWeight = FontWeight.Medium) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = primaryColor,
@@ -243,7 +237,6 @@ fun HomeScreen(
                                     selected = selectedErrorMode == ErrorMode.NONE,
                                     onClick = {
                                         NetworkSimulationManager.setMode(ErrorMode.NONE)
-                                        selectedErrorMode = ErrorMode.NONE
                                         lazyPagingItems.retry()
                                     },
                                     modifier = Modifier.weight(1f)
@@ -253,7 +246,6 @@ fun HomeScreen(
                                     selected = selectedErrorMode == ErrorMode.NO_INTERNET,
                                     onClick = {
                                         NetworkSimulationManager.setMode(ErrorMode.NO_INTERNET)
-                                        selectedErrorMode = ErrorMode.NO_INTERNET
                                     },
                                     modifier = Modifier.weight(1f)
                                 )
@@ -262,7 +254,6 @@ fun HomeScreen(
                                     selected = selectedErrorMode == ErrorMode.SERVER_ERROR_500,
                                     onClick = {
                                         NetworkSimulationManager.setMode(ErrorMode.SERVER_ERROR_500)
-                                        selectedErrorMode = ErrorMode.SERVER_ERROR_500
                                     },
                                     modifier = Modifier.weight(1f)
                                 )
@@ -271,7 +262,6 @@ fun HomeScreen(
                                     selected = selectedErrorMode == ErrorMode.RATE_LIMIT_429,
                                     onClick = {
                                         NetworkSimulationManager.setMode(ErrorMode.RATE_LIMIT_429)
-                                        selectedErrorMode = ErrorMode.RATE_LIMIT_429
                                     },
                                     modifier = Modifier.weight(1f)
                                 )
@@ -280,7 +270,6 @@ fun HomeScreen(
                                     selected = selectedErrorMode == ErrorMode.TIMEOUT,
                                     onClick = {
                                         NetworkSimulationManager.setMode(ErrorMode.TIMEOUT)
-                                        selectedErrorMode = ErrorMode.TIMEOUT
                                     },
                                     modifier = Modifier.weight(1f)
                                 )
@@ -426,10 +415,7 @@ fun HomeScreen(
                                 // Dynamic paginated feeds array list
                                 items(
                                     count = lazyPagingItems.itemCount,
-                                    key = { index ->
-                                        val item = lazyPagingItems[index]
-                                        item?.id ?: index
-                                    }
+                                    key = lazyPagingItems.itemKey { it.id }
                                 ) { index ->
                                     val item = lazyPagingItems[index]
                                     if (item != null) {
@@ -1083,7 +1069,7 @@ fun LogWidgetConsole(logs: List<String>) {
                 Text("Interceptors Active", color = Color(0xFF64748B), fontSize = 10.sp)
             }
             Spacer(modifier = Modifier.height(10.dp))
-            Divider(color = Color(0xFF1E293B))
+            HorizontalDivider(color = Color(0xFF1E293B))
             Spacer(modifier = Modifier.height(10.dp))
 
             if (logs.isEmpty()) {

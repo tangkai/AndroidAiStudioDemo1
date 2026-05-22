@@ -6,6 +6,7 @@ import com.example.data.model.SourceType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,9 +23,12 @@ import javax.inject.Singleton
 class PagingRepository @Inject constructor() {
 
     private val TAG = "PagingRepository"
-    private val _itemsList = ArrayList<PagingItem>()
+    private val _itemsList = java.util.concurrent.CopyOnWriteArrayList<PagingItem>()
     private val _mutationLog = MutableStateFlow<List<String>>(emptyList())
     val mutationLog: StateFlow<List<String>> = _mutationLog.asStateFlow()
+
+    private val _invalidationEvents = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val invalidationEvents = _invalidationEvents.asSharedFlow()
 
     // Flag to trigger invalidation under Hilt-guided flow
     var onDataInvalidated: (() -> Unit)? = null
@@ -147,5 +151,6 @@ class PagingRepository @Inject constructor() {
 
     private fun notifyDataChanged() {
         onDataInvalidated?.invoke()
+        _invalidationEvents.tryEmit(Unit)
     }
 }

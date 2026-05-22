@@ -20,12 +20,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
  * MainViewModel administering the MVVM design architecture.
  * Exposes a flow of PagingData that reacts dynamically to mutations.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val repository: PagingRepository
@@ -75,13 +77,17 @@ class MainViewModel @Inject constructor(
         .cachedIn(viewModelScope)
 
     init {
-        // Wire repository callbacks to automatically invalidate the active PagingSource
-        repository.onDataInvalidated = {
-            currentPagingSource?.invalidate()
+        // Collect database invalidation events safely in ViewModel scope
+        viewModelScope.launch {
+            repository.invalidationEvents.collect {
+                currentPagingSource?.invalidate()
+            }
         }
-        // Wire Network simulation callbacks to invalidate current source and trigger retry/failure UI streams
-        com.example.data.api.NetworkSimulationManager.onErrorModeChanged = {
-            currentPagingSource?.invalidate()
+        // Collect simulated error mode changes safely in ViewModel scope
+        viewModelScope.launch {
+            com.example.data.api.NetworkSimulationManager.errorModeFlow.collect {
+                currentPagingSource?.invalidate()
+            }
         }
     }
 
