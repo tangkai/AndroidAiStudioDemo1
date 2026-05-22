@@ -1,0 +1,6 @@
+{
+  "name": "Paging Architecture",
+  "description": "Modern Android Architecture (MVVM, KSP, Hilt, Paging 3, Retrofit, Flow, Jetpack Compose) showing custom Paging 3 forward/backward and mid-page load/mutation paradigms.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
